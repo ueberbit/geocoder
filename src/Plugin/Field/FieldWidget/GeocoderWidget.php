@@ -9,22 +9,18 @@ namespace Drupal\geocoder\Plugin\Field\FieldWidget;
 
 use Drupal\Core\Field\FieldItemListInterface;
 use Drupal\Core\Field\WidgetBase;
+use Drupal\Core\Form\FormStateInterface;
 use Symfony\Component\Validator\ConstraintViolationInterface;
 
 /**
- * Widget implementation of the 'geocoder_default' widget.
+ * Plugin implementation of the 'geocoder_default' widget.
  *
  * @FieldWidget(
  *   id = "geocoder_widget",
  *   label = @Translation("Geocoder"),
  *   field_types = {
- *     "text"
+ *     "string"
  *   },
- *   settings = {
- *     "destination_field" = "",
- *     "placeholder" = "",
- *     "geocoder_engine" = ""
- *   }
  * )
  */
 class GeocoderWidget extends WidgetBase {
@@ -32,19 +28,30 @@ class GeocoderWidget extends WidgetBase {
   /**
    * {@inheritdoc}
    */
-  public function settingsForm(array $form, array &$form_state) {
-    $element = array();
+  public static function defaultSettings() {
+    return array(
+      'destination_field' => "",
+      'placeholder' => "",
+      'geocoder_engine' => "",
+    ) + parent::defaultSettings();
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function settingsForm(array $form, FormStateInterface $form_state) {
+    $elements = parent::settingsForm($form, $form_state);
 
     $entityFieldDefinitions = \Drupal::entityManager()->getFieldDefinitions($this->fieldDefinition->entity_type, $this->fieldDefinition->bundle);
 
     $options = array();
     foreach ($entityFieldDefinitions as $id => $definition) {
-      if ($definition['type'] == 'field_item:geofield') {
-        $options[$id] = $definition['label'];
+      if ($definition->getType() == 'geofield') {
+        $options[$id] = $definition->getLabel();
       }
     }
 
-    $element['destination_field'] = array(
+    $elements['destination_field'] = array(
       '#type' => 'select',
       '#title' => $this->t('Destination Geo Field'),
       '#default_value' => $this->getSetting('destination_field'),
@@ -52,22 +59,14 @@ class GeocoderWidget extends WidgetBase {
       '#options' => $options,
     );
 
-    $element['placeholder'] = array(
+    $elements['placeholder'] = array(
       '#type' => 'textfield',
       '#title' => t('Placeholder'),
       '#default_value' => $this->getSetting('placeholder'),
       '#description' => t('Text that will be shown inside the field until a value is entered. This hint is usually a sample value or a brief description of the expected format.'),
     );
 
-    /*$element['size'] = array(
-      '#type' => 'number',
-      '#title' => t('Size of textfield'),
-      '#default_value' => $this->getSetting('size'),
-      '#required' => TRUE,
-      '#min' => 1,
-    );
-    */
-    return $element;
+    return $elements;
   }
 
   /**
@@ -87,7 +86,7 @@ class GeocoderWidget extends WidgetBase {
   /**
    * {@inheritdoc}
    */
-  public function formElement(FieldItemListInterface $items, $delta, array $element, array &$form, array &$form_state) {
+  public function formElement(FieldItemListInterface $items, $delta, array $element, array &$form, FormStateInterface $form_state) {
     $main_widget = $element + array(
       '#type' => 'textfield',
       '#default_value' => isset($items[$delta]->value) ? $items[$delta]->value : NULL,
@@ -97,7 +96,7 @@ class GeocoderWidget extends WidgetBase {
 
     $element['value'] = $main_widget;
 
-    $source_field_id = 'edit-' . str_replace('_', '-', $element['#field_name']) . '-' . $delta . '-value';
+    $source_field_id = 'edit-' . str_replace('_', '-', $items->getFieldDefinition()->getName()) . '-' . $delta . '-value';
     $destination_field_id = 'edit-' . str_replace('_', '-', $this->getSetting('destination_field')) . '-wrapper';
 
     $element['#attached'] = array(
@@ -131,7 +130,7 @@ class GeocoderWidget extends WidgetBase {
   /**
    * {@inheritdoc}
    */
-  public function errorElement(array $element, ConstraintViolationInterface $violation, array $form, array &$form_state) {
+  public function errorElement(array $element, ConstraintViolationInterface $violation, array $form, FormStateInterface $form_state) {
     if ($violation->arrayPropertyPath == array('format') && isset($element['format']['#access']) && !$element['format']['#access']) {
       // Ignore validation errors for formats if formats may not be changed,
       // i.e. when existing formats become invalid. See filter_process_format().
