@@ -1,0 +1,6 @@
+geocoder.admin_api_config_services:
+  title: 'Geocoder API Keys'
+  parent: system.admin_config_system
+  description: 'Provide API Keys for various Geocoders'
+  route_name: geocoder.admin_api_config_services
+  weight: -10

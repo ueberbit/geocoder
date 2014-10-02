@@ -11,7 +11,17 @@
     attach: function(context, settings) {
       var geocoderSettings = settings.geocoder;
 
-      var googleGeocoder = new GeocoderJS.createGeocoder(geocoderSettings.engine);
+      var geocoderOptions = {
+        'provider': geocoderSettings.engine
+      };
+
+      if (geocoderSettings.api_key) {
+        geocoderOptions.apiKey = geocoderSettings.api_key;
+      }
+
+      console.log(geocoderOptions);
+
+      var googleGeocoder = new GeocoderJS.createGeocoder(geocoderOptions);
       for (var i in geocoderSettings.fields) {
         $('#' + geocoderSettings.fields[i].sourceField, context).autocomplete({
           source: function(request, response) {

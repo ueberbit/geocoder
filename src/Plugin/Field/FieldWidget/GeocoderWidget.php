@@ -98,6 +98,7 @@ class GeocoderWidget extends WidgetBase {
 
     $source_field_id = 'edit-' . str_replace('_', '-', $items->getFieldDefinition()->getName()) . '-' . $delta . '-value';
     $destination_field_id = 'edit-' . str_replace('_', '-', $this->getSetting('destination_field')) . '-wrapper';
+    $google_api_key = \Drupal::config('geocoder.google')->get('api_key');
 
     $element['#attached'] = array(
       'library' => array(
@@ -110,6 +111,7 @@ class GeocoderWidget extends WidgetBase {
           'data' => array(
             'geocoder' => array(
               'engine' => 'google',
+              'api_key' => $google_api_key,
               'fields' => array(
                 array(
                   'sourceField' => $source_field_id,

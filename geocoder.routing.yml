@@ -1,0 +1,7 @@
+geocoder.admin_api_config_services:
+  path: '/admin/config/geocoder'
+  defaults:
+    _form: '\Drupal\geocoder\Form\APIKeysForm'
+    _title: 'Geocoder API Keys'
+  requirements:
+    _permission: 'access administration pages'
