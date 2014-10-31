@@ -1,8 +1,1 @@
 <?php
-
-/**
- * Implements hook_composer_json_alter().
- */
-function geocoder_composer_json_alter(&$json) {
-  $json['require']['willdurand/geocoder'] = '2.7.0';
-}

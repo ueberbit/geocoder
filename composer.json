@@ -1,0 +1,6 @@
+{
+    "require": {
+        "willdurand/geocoder": "~2.7",
+        "guzzle/guzzle": "~3.8"
+    }
+}
