@@ -1,0 +1,9 @@
+name: Geocoder Geofield Integration
+type: module
+description: Fill in geofields from geocoder.
+version: 8.1-dev
+core: 8.x
+package: Geo
+dependencies:
+  - geocoder
+  - geofield
