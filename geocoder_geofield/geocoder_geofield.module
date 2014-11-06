@@ -4,63 +4,64 @@
  * Implements hook_field_widget_third_party_settings_form().
  */
 function geocoder_geofield_field_widget_third_party_settings_form(\Drupal\Core\Field\WidgetInterface $plugin, \Drupal\Core\Field\FieldDefinitionInterface $field_definition, $form_mode, $form, \Drupal\Core\Form\FormStateInterface $form_state) {
-    //if ($field_definition->getType() == 'geofield') {
-    if ($plugin->getPluginId() == 'geofield_latlon') {
-        $element = array();
-        // Add a 'my_setting' checkbox to the settings form for 'foo_widget' field
-        // widgets.
-        $element['enabled'] = array(
-            '#type' => 'checkbox',
-            '#title' => Drupal::translation()->translate('Use Geocoder to automatically set location from text.'),
-            '#default_value' => $plugin->getThirdPartySetting('geocoder_geofield', 'enabled', FALSE),
-        );
-        /*$source_options = array();
-        $element['source'] = array(
-            '#type' => 'radio',
-            '#options' => ''
-        );*/
-        return $element;
-    }
+  //if ($field_definition->getType() == 'geofield') {
+  if ($plugin->getPluginId() == 'geofield_latlon') {
+    $element = array();
+    // Add a 'my_setting' checkbox to the settings form for 'foo_widget' field
+    // widgets.
+    $element['enabled'] = array(
+      '#type' => 'checkbox',
+      '#title' => Drupal::translation()
+        ->translate('Use Geocoder to automatically set location from text.'),
+      '#default_value' => $plugin->getThirdPartySetting('geocoder_geofield', 'enabled', FALSE),
+    );
+    /*$source_options = array();
+    $element['source'] = array(
+        '#type' => 'radio',
+        '#options' => ''
+    );*/
+    return $element;
+  }
 }
 
 /**
  * Implements hook_field_widget_settings_summary_alter().
  */
 function geocoder_geofield_field_widget_settings_summary_alter(&$summary, $context) {
-    if ($context['widget']->getPluginId() == 'geofield_latlon') {
-        if ($context['widget']->getThirdPartySetting('geocoder_geofield', 'enabled', FALSE)) {
-            $summary[] = Drupal::translation()->translate('Geocoding is enabled.');
-        }
+  if ($context['widget']->getPluginId() == 'geofield_latlon') {
+    if ($context['widget']->getThirdPartySetting('geocoder_geofield', 'enabled', FALSE)) {
+      $summary[] = Drupal::translation()->translate('Geocoding is enabled.');
     }
+  }
 }
 
 /**
  * Implements hook_field_widget_form_alter().
  */
 function geocoder_geofield_field_widget_form_alter(&$element, \Drupal\Core\Form\FormStateInterface $form_state, $context) {
-    if ($context['widget']->getThirdPartySetting('geocoder_geofield', 'enabled', False)) {
-        // @todo move to validation handler of source field?
-        // @todo should only be done if we geofield is empty. Or not at all automatically, unless the user clicks the ajax update button.
-        // $element['value']['#element_validate'][] = 'geocoder_process_geofield_latlon';
+  if ($context['widget']->getThirdPartySetting('geocoder_geofield', 'enabled', FALSE)) {
+    // @todo move to validation handler of source field?
+    // @todo should only be done if we geofield is empty. Or not at all automatically, unless the user clicks the ajax update button.
+    // $element['value']['#element_validate'][] = 'geocoder_process_geofield_latlon';
 
-        // @todo store widget settings about source/destination field etc. in $form_state
-        // $form_state->set('geocoder_settings', array());
+    // @todo store widget settings about source/destination field etc. in $form_state
+    // $form_state->set('geocoder_settings', array());
 
-        $wrapper_id = \Drupal\Component\Utility\Html::getUniqueId('geocoder-wrapper');
-        $element['geocoder_update'] = array(
-            '#type' => 'submit',
-            '#submit' => array('geocoder_geofield_ajax_submit'),
-            '#value' => 'Update coordinates from address',
-            '#ajax' => array(
-                'callback' => 'geocoder_geofield_ajax_update',
-                'wrapper' => $wrapper_id,
-                'method' => 'replace'
-            ),
-        );
+    $wrapper_id = \Drupal\Component\Utility\Html::getUniqueId('geocoder-wrapper');
+    $element['geocoder_update'] = array(
+      '#type' => 'submit',
+      '#submit' => array('geocoder_geofield_ajax_submit'),
+      '#value' => 'Update coordinates from address',
+      '#ajax' => array(
+        'callback' => 'geocoder_geofield_ajax_update',
+        'wrapper' => $wrapper_id,
+        'method' => 'replace'
+      ),
+    );
 
-        $element['#prefix'] = '<div id="' . $wrapper_id . '">';
-        $element['#suffix'] = '</div>';
-    }
+    $element['#prefix'] = '<div id="' . $wrapper_id . '">';
+    $element['#suffix'] = '</div>';
+  }
 }
 
 /**
@@ -68,25 +69,25 @@ function geocoder_geofield_field_widget_form_alter(&$element, \Drupal\Core\Form\
  * geofield input value, and triggers a form rebuild.
  */
 function geocoder_geofield_ajax_submit($form, \Drupal\Core\Form\FormStateInterface $form_state) {
-    $addresses = $form_state->getValue('field_address');
-    if ($value = geocoder_geofield_geocode_addressfield($addresses[0])) {
-        // Change the user input to reflect the coordinates of the geocoded address.
-        // This seems to only work properly if we update the raw user input. If we instead only change the form "values"
-        // then the newly rendered form fields do not reflect the new coordinates. Looks like this happens because the
-        // value of the GeofieldItem element is not updated in that case, which itself seems to be partially responsible
-        // for the rendered form element. See GeoFieldItem::populateComputedValues().
-        $user_input = $form_state->getUserInput();
-        $user_input['field_geofield'][0]['value'] = $value;
-        $form_state->setUserInput($user_input);
-        $form_state->setRebuild(TRUE);
-    }
+  $addresses = $form_state->getValue('field_address');
+  if ($value = geocoder_geofield_geocode_addressfield($addresses[0])) {
+    // Change the user input to reflect the coordinates of the geocoded address.
+    // This seems to only work properly if we update the raw user input. If we instead only change the form "values"
+    // then the newly rendered form fields do not reflect the new coordinates. Looks like this happens because the
+    // value of the GeofieldItem element is not updated in that case, which itself seems to be partially responsible
+    // for the rendered form element. See GeoFieldItem::populateComputedValues().
+    $user_input = $form_state->getUserInput();
+    $user_input['field_geofield'][0]['value'] = $value;
+    $form_state->setUserInput($user_input);
+    $form_state->setRebuild(TRUE);
+  }
 }
 
 /**
  * Ajax callback handler. Returns the updated form element, after geocoding.
  */
 function geocoder_geofield_ajax_update($form, \Drupal\Core\Form\FormStateInterface $form_state) {
-    return $form['field_geofield']['widget'][0];
+  return $form['field_geofield']['widget'][0];
 }
 
 /**
@@ -94,10 +95,10 @@ function geocoder_geofield_ajax_update($form, \Drupal\Core\Form\FormStateInterfa
  * @todo Remove? See todo comment in geocoder_geofield_field_widget_form_alter()
  */
 function geocoder_geofield_process_geofield_latlon($element, \Drupal\Core\Form\FormStateInterface $form_state, $form) {
-    $addresses = $form_state->getValue('field_address');
-    if ($value = geocoder_geofield_geocode_addressfield($addresses[0])) {
-        $form_state->setValueForElement($element, $value);
-    }
+  $addresses = $form_state->getValue('field_address');
+  if ($value = geocoder_geofield_geocode_addressfield($addresses[0])) {
+    $form_state->setValueForElement($element, $value);
+  }
 }
 
 /**
@@ -109,11 +110,11 @@ function geocoder_geofield_process_geofield_latlon($element, \Drupal\Core\Form\F
  *   Array with keys "lat" and "lon" if geocoding was successful, NULL otherwise.
  */
 function geocoder_geofield_geocode_addressfield($address) {
-    // @todo Custom addressfield handler which formats address for geocoding. Should consider how to get best results.
-    $address = addressfield_generate($address, array('address'), array('mode' => 'render'));
-    $searchstring = drupal_render($address);
-    // @todo Move to custom addressfield handler.
-    $searchstring = trim(preg_replace('/\s+/', ' ', $searchstring));
+  // @todo Custom addressfield handler which formats address for geocoding. Should consider how to get best results.
+  $address = addressfield_generate($address, array('address'), array('mode' => 'render'));
+  $searchstring = drupal_render($address);
+  // @todo Move to custom addressfield handler.
+  $searchstring = trim(preg_replace('/\s+/', ' ', $searchstring));
 
-    return geocoder_geocode_lat_lon($searchstring);
+  return geocoder_geocode_lat_lon($searchstring);
 }
