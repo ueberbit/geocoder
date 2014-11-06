@@ -1,6 +1,5 @@
 name: Geocoder
 type: module
 description: Converts strings into lat/lon.
-version: 8.1-dev
 core: 8.x
 package: Geo

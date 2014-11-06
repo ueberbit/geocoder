@@ -9,31 +9,15 @@
  *   The determined geocode if geocoding was successful, NULL otherwise.
  */
 function geocoder_geocode($searchstring) {
-    $adapter = new \Geocoder\HttpAdapter\GuzzleHttpAdapter();
-    $geocoder = new \Geocoder\Geocoder();
-    $geocoder->registerProvider(new \Geocoder\Provider\OpenStreetMapProvider($adapter));
+  $adapter = new \Geocoder\HttpAdapter\GuzzleHttpAdapter();
+  $geocoder = new \Geocoder\Geocoder();
+  $geocoder->registerProvider(new \Geocoder\Provider\OpenStreetMapProvider($adapter));
 
-    try {
-        $geocode = $geocoder->geocode($searchstring);
-        return $geocode;
-    } catch (Exception $e) {
-        watchdog_exception('geocoder', $e);
-    }
-    return NULL;
-}
-
-/**
- * Geocodes the given string.
- *
- * @param $searchstring
- *   A string representing a location to be geocoded, e.g. an address.
- * @return array|NULL
- *   Array with keys "lat" and "lon" if geocoding was successful, NULL otherwise.
- */
-function geocoder_geocode_lat_lon($searchstring) {
-    $geocode = geocoder_geocode($searchstring);
-    return array(
-        'lat'=> $geocode->getLatitude(),
-        'lon' => $geocode->getLongitude()
-    );
+  try {
+    $geocode = $geocoder->geocode($searchstring);
+    return $geocode;
+  } catch (Exception $e) {
+    watchdog_exception('geocoder', $e);
+  }
+  return NULL;
 }
