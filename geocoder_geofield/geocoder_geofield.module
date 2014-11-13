@@ -1,23 +1,98 @@
 <?php
 
 /**
+ * Returns a list of functions for formatting field values into search strings
+ * for the geocoder.
+ *
+ * @param $name
+ *   Set to a field name to only retrieve the respective callback name.
+ * @return mixed
+ *   The respective callback name if $name is specified, the complete list of
+ *   callback functions keyed by field names otherwise.
+ */
+function geocoder_geofield_searchstring_callbacks($name = FALSE) {
+  $callbacks = &drupal_static(__FUNCTION__);
+  if (!isset($callbacks)) {
+    $callbacks = array(
+      'addressfield' => 'geocoder_geofield_format_addressfield',
+      'string' => 'geocoder_geofield_format_textfield',
+    );
+  }
+  if ($name !== FALSE) {
+    return isset($callbacks[$name]) ? $callbacks[$name] : NULL;
+  }
+  return $callbacks;
+}
+
+/**
+ * Returns a list of available source fields for geocoding on the given entity
+ * type and bundle.
+ *
+ * Availability is determined by checking whether we know how to convert a
+ * respective field value into a searchstring.
+ *
+ * @see geocoder_geofield_searchstring_callbacks
+ *
+ * @param $entity_type_id
+ *   The target entity type id.
+ * @param $bundle
+ *   The target bundle name.
+ * @return \Drupal\Core\Field\FieldDefinitionInterface[]
+ *   List of field definitions.
+ */
+function geocoder_geofield_get_available_source_fields($entity_type_id, $bundle) {
+  $available_types = array_keys(geocoder_geofield_searchstring_callbacks());
+
+  $field_list = Drupal::entityManager()
+    ->getFieldDefinitions($entity_type_id, $bundle);
+
+  return array_filter($field_list, function (\Drupal\Core\Field\FieldDefinitionInterface $definition) use ($available_types) {
+    return in_array($definition->getType(), $available_types);
+  });
+}
+
+/**
+ * Maps an array of FieldDefinitionInterface objects to a list of name-label
+ * pairs, e.g. for use in form input options.
+ *
+ * @param \Drupal\Core\Field\FieldDefinitionInterface[] $field_list
+ *   List of field definitions.
+ * @return array
+ *   List of field definitions.
+ */
+function geocoder_geofield_map_fields_to_options(array $field_list) {
+  $options = array();
+  foreach ($field_list as $definition) {
+    $options[$definition->getName()] = $definition->getLabel();
+  }
+  return $options;
+}
+
+/**
  * Implements hook_field_widget_third_party_settings_form().
  */
 function geocoder_geofield_field_widget_third_party_settings_form(\Drupal\Core\Field\WidgetInterface $plugin, \Drupal\Core\Field\FieldDefinitionInterface $field_definition, $form_mode, $form, \Drupal\Core\Form\FormStateInterface $form_state) {
-  if (_geocoder_geofield_widget_is_supported($plugin)) {
-    // Add a 'my_setting' checkbox to the settings form for 'foo_widget' field
-    // widgets.
+  if (geocoder_geofield_widget_is_supported($plugin)) {
     $element['enabled'] = array(
       '#type' => 'checkbox',
       '#title' => Drupal::translation()
         ->translate('Use Geocoder to automatically set location from text.'),
       '#default_value' => $plugin->getThirdPartySetting('geocoder_geofield', 'enabled', FALSE),
     );
-    /*$source_options = array();
+
+    $source_fields = geocoder_geofield_get_available_source_fields($field_definition->getTargetEntityTypeId(), $field_definition->getTargetBundle());
+    $source_options = geocoder_geofield_map_fields_to_options($source_fields);
     $element['source'] = array(
-        '#type' => 'radio',
-        '#options' => ''
-    );*/
+      '#title' => Drupal::translation()->translate('Source field'),
+      '#type' => 'select',
+      '#options' => $source_options,
+      '#states' => array(
+        'invisible' => array(
+          ':input[name="fields[field_geofield][settings_edit_form][third_party_settings][geocoder_geofield][enabled]"]' => array('checked' => FALSE),
+        ),
+      ),
+      '#default_value' => $plugin->getThirdPartySetting('geocoder_geofield', 'source', key($source_options)),
+    );
     return $element;
   }
 }
@@ -26,11 +101,13 @@ function geocoder_geofield_field_widget_third_party_settings_form(\Drupal\Core\F
  * Implements hook_field_widget_settings_summary_alter().
  */
 function geocoder_geofield_field_widget_settings_summary_alter(&$summary, $context) {
-  if (_geocoder_geofield_widget_is_supported($context['widget'])) {
+  if (geocoder_geofield_widget_is_supported($context['widget'])) {
     $enabled = $context['widget']->getThirdPartySetting('geocoder_geofield', 'enabled', FALSE);
     if ($enabled) {
       $summary[] = Drupal::translation()
-        ->translate('Geocoding is enabled.');
+        ->translate('Geocoding from %source is enabled.', array(
+          '%source' => $context['widget']->getThirdPartySetting('geocoder_geofield', 'source'),
+        ));
     }
     else {
       $summary[] = Drupal::translation()
@@ -45,95 +122,102 @@ function geocoder_geofield_field_widget_settings_summary_alter(&$summary, $conte
  * @param \Drupal\Core\Field\WidgetInterface $widget_obj
  * @return bool|string
  */
-function _geocoder_geofield_widget_is_supported(\Drupal\Core\Field\WidgetInterface $widget_obj) {
+function geocoder_geofield_widget_is_supported(\Drupal\Core\Field\WidgetInterface $widget_obj) {
   try {
-    return _geocoder_geofield_find_widget_type($widget_obj);
+    return geocoder_geofield_geocoder_value_callback($widget_obj);
   } catch (InvalidArgumentException $e) {
     return FALSE;
   }
 }
 
 /**
- * Determines the value type for a given widget instance.
- *
- * @see _geocoder_geofield_process_value
+ * Determines a callback function which converts a geocode into the proper value
+ * format for the given widget type.
  *
  * @param \Drupal\Core\Field\WidgetInterface $widget_obj
- * @return string
+ *   The target widget type.
+ * @return callable
+ *   The value function callback.
+ * @throws Exception
+ *   If the widget type is invalid.
  */
-function _geocoder_geofield_find_widget_type(\Drupal\Core\Field\WidgetInterface $widget_obj) {
+function geocoder_geofield_geocoder_value_callback(\Drupal\Core\Field\WidgetInterface $widget_obj) {
   if ($widget_obj instanceof \Drupal\geofield\Plugin\Field\FieldWidget\GeofieldDefaultWidget) {
-    return 'geofield_wkt';
+    return 'geocoder_geofield_wkt_value';
   }
   if ($widget_obj instanceof \Drupal\geofield\Plugin\Field\FieldWidget\GeofieldLatLonWidget) {
-    return 'geofield_latlon';
+    return 'geocoder_geofield_lat_lon_value';
   }
   if ($widget_obj instanceof \Drupal\geofield\Plugin\Field\FieldWidget\GeofieldBoundsWidget) {
-    return 'geofield_bounds';
+    return 'geocoder_geofield_bounds_value';
   }
   throw new InvalidArgumentException("Geocoder: unknown widget type.");
 }
 
 /**
- * Translates the given geocode into the proper value format for the given
- * widget type.
- *
- * @see _geocoder_geofield_find_widget_type().
- *
  * @param \Geocoder\Result\ResultInterface $geocode
  *   The new geocode.
- * @param $widget_type
- *   The value type, as determined by _geocoder_geofield_find_widget_type().
- * @return array|string
- *   The new form value for the respective geofield widget.
- * @throws Exception
- *   If the widget type is invalid.
+ * @return string
+ *   WKT formatted string.
  */
-function _geocoder_geofield_process_value(\Geocoder\Result\ResultInterface $geocode, $widget_type) {
-  switch ($widget_type) {
-    case 'geofield_latlon':
-      return array(
-        'lon' => $geocode->getLongitude(),
-        'lat' => $geocode->getLatitude(),
-      );
+function geocoder_geofield_wkt_value(\Geocoder\Result\ResultInterface $geocode) {
+  return \Drupal::service('geofield.wkt_generator')
+    ->WktBuildPoint(array(
+      $geocode->getLongitude(),
+      $geocode->getLatitude()
+    ));
+}
 
-    case 'geofield_wkt':
-      return \Drupal::service('geofield.wkt_generator')
-        ->WktBuildPoint(array(
-          $geocode->getLongitude(),
-          $geocode->getLatitude()
-        ));
+/**
+ * @param \Geocoder\Result\ResultInterface $geocode
+ *   The new geocode.
+ * @return array
+ *   Array of coordinate values, keyed by lat and lon.
+ */
+function geocoder_geofield_lat_lon_value(\Geocoder\Result\ResultInterface $geocode) {
+  return array(
+    'lon' => $geocode->getLongitude(),
+    'lat' => $geocode->getLatitude(),
+  );
+}
 
-    case 'geofield_bounds':
-      $bounds = $geocode->getBounds();
-      return array(
-        'top' => $bounds['south'],
-        'bottom' => $bounds['bottom'],
-        'left' => $bounds['west'],
-        'right' => $bounds['east'],
-      );
-
-    default:
-      throw new InvalidArgumentException("Geocoder: unknown widget type.");
-  }
+/**
+ * @param \Geocoder\Result\ResultInterface $geocode
+ *   The new geocode.
+ * @return array|string
+ *   Array of bounds, keyed by top, bottom, left and right.
+ */
+function geocoder_geofield_bounds_value(\Geocoder\Result\ResultInterface $geocode) {
+  $bounds = $geocode->getBounds();
+  return array(
+    'top' => $bounds['south'],
+    'bottom' => $bounds['bottom'],
+    'left' => $bounds['west'],
+    'right' => $bounds['east'],
+  );
 }
 
 /**
  * Implements hook_field_widget_form_alter().
  */
 function geocoder_geofield_field_widget_form_alter(&$element, \Drupal\Core\Form\FormStateInterface $form_state, $context) {
-  if (_geocoder_geofield_widget_is_supported($context['widget']) && $context['widget']->getThirdPartySetting('geocoder_geofield', 'enabled', FALSE)) {
-    // Keep track of widget settings in form state, for later use in submit
-    // handler.
-    $state_key = array(
-      'geocoder_geofield',
-      $context['items']->getFieldDefinition()->getName()
-    );
+  if (geocoder_geofield_widget_is_supported($context['widget']) && $context['widget']->getThirdPartySetting('geocoder_geofield', 'enabled', FALSE)) {
+    // Keep track of widget settings in form state. This is primarily done to
+    // make sure we reuse the wrapper id when rebuilding the form.
+    $target_field_name = $context['items']->getFieldDefinition()->getName();
+    $state_key = array('geocoder_geofield', $target_field_name);
     if (!($settings = $form_state->get($state_key, FALSE))) {
+      // Field definition objects for source and target fields.
+      $target_field = $context['items']->getFieldDefinition();
+      $source_field_name = $context['widget']->getThirdPartySetting('geocoder_geofield', 'source');
+      $source_field = \Drupal\field\Entity\FieldConfig::loadByName($target_field->getTargetEntityTypeId(), $target_field->getTargetBundle(), $source_field_name);
+
       $settings = array(
-        'widget_type' => _geocoder_geofield_find_widget_type($context['widget']),
         'wrapper_id' => \Drupal\Component\Utility\Html::getUniqueId('geocoder-wrapper'),
-        //'settings' => $context['widget']->getThirdPartySetting('geocoder_geofield'),
+        'target' => $target_field,
+        'geocoder value callback' => geocoder_geofield_geocoder_value_callback($context['widget']),
+        'source' => $source_field,
+        'searchstring callback' => geocoder_geofield_searchstring_callbacks($source_field->getType()),
       );
       $form_state->set($state_key, $settings);
     }
@@ -142,36 +226,47 @@ function geocoder_geofield_field_widget_form_alter(&$element, \Drupal\Core\Form\
     $element['value']['#prefix'] = '<div id="' . $settings['wrapper_id'] . '">';
     $element['value']['#suffix'] = '</div>';
 
-    // Attach submit button for updating value from addressfield.
+    // Attach submit button for updating value from source field.
     $element['geocoder_update'] = array(
       '#type' => 'submit',
       '#submit' => array('geocoder_geofield_ajax_submit'),
-      '#value' => 'Update coordinates from address',
+      '#value' => Drupal::translation()
+        ->translate('Update @target_field from @source_field', array(
+          '@target_field' => $settings['target']->getLabel(),
+          '@source_field' => $settings['source']->getLabel(),
+        )),
       '#ajax' => array(
         'callback' => 'geocoder_geofield_ajax_update',
         'wrapper' => $settings['wrapper_id'],
         'method' => 'replaceWith',
         'effect' => 'fade',
       ),
-      '#geocoder_widget_type' => $settings['widget_type'],
+      '#geocoder_settings' => $settings,
       // Only validate the address field, as that's the only value we need.
-      '#limit_validation_errors' => array(array('field_address')),
+      '#limit_validation_errors' => array(array($settings['source']->getName())),
     );
   }
 }
 
 /**
- * Submit handler for the "geocoder_update" button. Geocodes the current address value, updates the respective
- * geofield input value, and triggers a form rebuild.
+ * Submit handler for the "geocoder_update" button.
+ *
+ * Geocodes the source field value, updates the respective geofield input value,
+ * and triggers a form rebuild.
  */
 function geocoder_geofield_ajax_submit($form, \Drupal\Core\Form\FormStateInterface $form_state) {
-  $addresses = $form_state->getValue('field_address');
-  $searchstring = geocoder_geofield_format_addressfield($addresses[0]);
+  $settings = $form_state->getTriggeringElement()['#geocoder_settings'];
+  if ($settings == FALSE) {
+    throw new LogicException('Invalid AJAX submit handler call.');
+  }
+
+  $value = $form_state->getValue($settings['source']->getName());
+  $searchstring = call_user_func($settings['searchstring callback'], $value);
 
   if ($geocode = geocoder_geocode($searchstring)) {
     // Translate geocoded values into value format corresponding to the
     // respective geofield widget.
-    $value = _geocoder_geofield_process_value($geocode, $form_state->getTriggeringElement()['#geocoder_widget_type']);
+    $value = call_user_func($settings['geocoder value callback'], $geocode);
 
     // Change the user input to reflect the coordinates of the geocoded address.
     // This seems to only work properly if we update the raw user input. If we
@@ -179,7 +274,7 @@ function geocoder_geofield_ajax_submit($form, \Drupal\Core\Form\FormStateInterfa
     // do not reflect the new coordinates.
     // @todo Figure out whether this can be solved in a more elegant way.
     $user_input = $form_state->getUserInput();
-    $user_input['field_geofield'][0]['value'] = $value;
+    $user_input[$settings['target']->getName()][0]['value'] = $value;
     $form_state->setUserInput($user_input);
 
     $form_state->setRebuild(TRUE);
@@ -190,24 +285,38 @@ function geocoder_geofield_ajax_submit($form, \Drupal\Core\Form\FormStateInterfa
 }
 
 /**
- * Ajax callback handler. Returns the updated form element, after geocoding.
+ * Ajax callback handler. Returns the updated form element after geocoding.
  */
 function geocoder_geofield_ajax_update($form, \Drupal\Core\Form\FormStateInterface $form_state) {
-  return $form['field_geofield']['widget'][0]['value'];
+  $target_field_name = $form_state->getTriggeringElement()['#geocoder_settings']['target']->getName();
+  return $form[$target_field_name]['widget'][0]['value'];
 }
 
 /**
- * Format and "addressfield" address into a search string for geocoding.
+ * Format an "addressfield" value into a search string for geocoding.
  *
- * @param $address
+ * @param $addresses
  *   The addressfield value to be geocoded.
  * @return string
  *   A search string for geocoding.
  */
-function geocoder_geofield_format_addressfield($address) {
+function geocoder_geofield_format_addressfield($addresses) {
+  $address = $addresses[0];
   // @todo Custom addressfield handler which formats address for geocoding. Should consider how to get best results.
   $address = addressfield_generate($address, array('address'), array('mode' => 'render'));
   $searchstring = drupal_render($address);
   // @todo Move to custom addressfield handler.
   return trim(preg_replace('/\s+/', ' ', $searchstring));
+}
+
+/**
+ * Format a "text" field value into a search string for geocoding.
+ *
+ * @param $text
+ *   The text field value.
+ * @return string
+ *   A search string for geocoding.
+ */
+function geocoder_geofield_format_textfield($text) {
+  return $text;
 }
