@@ -163,8 +163,8 @@ function geocoder_geofield_geocoder_value_callback(\Drupal\Core\Field\WidgetInte
 function geocoder_geofield_wkt_value(\Geocoder\Result\ResultInterface $geocode) {
   return \Drupal::service('geofield.wkt_generator')
     ->WktBuildPoint(array(
-      $geocode->getLongitude(),
-      $geocode->getLatitude()
+      round($geocode->getLongitude(), 7),
+      round($geocode->getLatitude(), 7)
     ));
 }
 
@@ -176,8 +176,8 @@ function geocoder_geofield_wkt_value(\Geocoder\Result\ResultInterface $geocode) 
  */
 function geocoder_geofield_lat_lon_value(\Geocoder\Result\ResultInterface $geocode) {
   return array(
-    'lon' => $geocode->getLongitude(),
-    'lat' => $geocode->getLatitude(),
+    'lon' => round($geocode->getLongitude(), 7),
+    'lat' => round($geocode->getLatitude(), 7)
   );
 }
 
@@ -280,7 +280,10 @@ function geocoder_geofield_ajax_submit($form, \Drupal\Core\Form\FormStateInterfa
     $form_state->setRebuild(TRUE);
   }
   else {
-    drupal_set_message("Address not found.");
+    drupal_set_message(\Drupal::translation()
+      ->translate("Address was not found: %address", array(
+        '%address' => $searchstring,
+      )), "error");
   }
 }
 
@@ -306,7 +309,9 @@ function geocoder_geofield_format_addressfield($addresses) {
   $address = addressfield_generate($address, array('address'), array('mode' => 'render'));
   $searchstring = drupal_render($address);
   // @todo Move to custom addressfield handler.
-  return trim(preg_replace('/\s+/', ' ', $searchstring));
+  $searchstring = strip_tags($searchstring);
+  $searchstring = trim(preg_replace('/\s+/', ' ', $searchstring));
+  return $searchstring;
 }
 
 /**
