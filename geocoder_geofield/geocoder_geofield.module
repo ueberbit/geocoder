@@ -222,6 +222,11 @@ function geocoder_geofield_field_widget_form_alter(&$element, \Drupal\Core\Form\
       $form_state->set($state_key, $settings);
     }
 
+    // Stop now if the source field is not in the current form (e.g. hidden).
+    if (!isset($context['form'][$settings['source']->getName()])) {
+      return;
+    }
+
     // Wrap value element into div for ajax replacement.
     $element['value']['#prefix'] = '<div id="' . $settings['wrapper_id'] . '">';
     $element['value']['#suffix'] = '</div>';
