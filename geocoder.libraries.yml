@@ -1,0 +1,26 @@
+geocoder:
+  version: VERSION
+  js:
+    /sites/all/libraries/geocoder-js/dist/geocoder.js: {}
+
+geocoder.widget:
+  version: VERSION
+  js:
+    js/geocoderWidget.js: {}
+  dependencies:
+    - system
+    - jquery.ui.autocomplete
+    - core/jquery
+    - core/jquery.once
+    - core/drupal
+    - core/drupalSettings
+    - geocoder/geocoder
+
+viewsProximityValue:
+  version: VERSION
+  js:
+    js/viewsProximityValue.js: {}
+  dependencies:
+    - core/jquery
+    - core/drupal
+    - core/drupalSettings

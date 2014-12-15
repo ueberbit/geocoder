@@ -102,28 +102,21 @@ class GeocoderWidget extends WidgetBase {
 
     $element['#attached'] = array(
       'library' => array(
-        array('system', 'jquery.ui.autocomplete'),
+        'geocoder/geocoderWidget',
       ),
-      'js' => array(
-        'sites/all/libraries/geocoder-js/dist/geocoder.js',
-        drupal_get_path('module', 'geocoder') . '/js/geocoderWidget.js',
-        array(
-          'data' => array(
-            'geocoder' => array(
-              'engine' => 'google',
-              'api_key' => $google_api_key,
-              'fields' => array(
-                array(
-                  'sourceField' => $source_field_id,
-                  'destinationField' => $destination_field_id,
-                  'sourceType' => 'geofield',
-                )
-              ),
-            ),
+      'drupalSettings' => array(
+        'geocoder' => array(
+          'engine' => 'google',
+          'api_key' => $google_api_key,
+          'fields' => array(
+            array(
+              'sourceField' => $source_field_id,
+              'destinationField' => $destination_field_id,
+              'sourceType' => 'geofield',
+            )
           ),
-          'type' => 'setting',
-        ),
-      ),
+        )
+      )
     );
 
     return $element;
