@@ -102,7 +102,7 @@ class GeocoderWidget extends WidgetBase {
 
     $element['#attached'] = array(
       'library' => array(
-        'geocoder/geocoderWidget',
+        'geocoder/geocoder.widget',
       ),
       'drupalSettings' => array(
         'geocoder' => array(
