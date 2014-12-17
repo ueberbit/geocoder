@@ -163,8 +163,8 @@ function geocoder_geofield_geocoder_value_callback(\Drupal\Core\Field\WidgetInte
 function geocoder_geofield_wkt_value(\Geocoder\Result\ResultInterface $geocode) {
   return \Drupal::service('geofield.wkt_generator')
     ->WktBuildPoint(array(
-      round($geocode->getLongitude(), 7),
-      round($geocode->getLatitude(), 7)
+      $geocode->getLongitude(),
+      $geocode->getLatitude()
     ));
 }
 
@@ -176,8 +176,8 @@ function geocoder_geofield_wkt_value(\Geocoder\Result\ResultInterface $geocode) 
  */
 function geocoder_geofield_lat_lon_value(\Geocoder\Result\ResultInterface $geocode) {
   return array(
-    'lon' => round($geocode->getLongitude(), 7),
-    'lat' => round($geocode->getLatitude(), 7)
+    'lon' => $geocode->getLongitude(),
+    'lat' => $geocode->getLatitude(),
   );
 }
 
