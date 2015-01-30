@@ -46,4 +46,14 @@ class APIKeysForm extends ConfigFormBase {
       ->save();
     parent::submitForm($form, $form_state);
   }
+
+  /**
+   * {@inheritdoc}.
+   */
+  protected function getEditableConfigNames() {
+    return [
+      'geocoder.google',
+    ];
+  }
+
 }
