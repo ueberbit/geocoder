@@ -19,8 +19,6 @@
         geocoderOptions.apiKey = geocoderSettings.api_key;
       }
 
-      console.log(geocoderOptions);
-
       var googleGeocoder = new GeocoderJS.createGeocoder(geocoderOptions);
       for (var i in geocoderSettings.fields) {
         $('#' + geocoderSettings.fields[i].sourceField, context).autocomplete({
