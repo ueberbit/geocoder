@@ -1,1 +1,2 @@
 api_key: ''
+map_provider_class: '\Geocoder\Provider\GoogleMapsProvider'

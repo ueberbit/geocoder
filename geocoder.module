@@ -11,7 +11,8 @@
 function geocoder_geocode($searchstring) {
   $adapter = new \Geocoder\HttpAdapter\GuzzleHttpAdapter();
   $geocoder = new \Geocoder\Geocoder();
-  $geocoder->registerProvider(new \Geocoder\Provider\GoogleMapsProvider($adapter));
+  $map_provider_class = \Drupal::config('geocoder.google')->get('map_provider_class');
+  $geocoder->registerProvider(new $map_provider_class($adapter));
 
   try {
     $geocode = $geocoder->geocode($searchstring);
