@@ -311,9 +311,14 @@ function geocoder_geofield_ajax_update($form, \Drupal\Core\Form\FormStateInterfa
 function geocoder_geofield_format_addressfield($addresses) {
   $address = $addresses[0];
   // @todo Custom addressfield handler which formats address for geocoding. Should consider how to get best results.
-  $address = addressfield_generate($address, array('address'), array('mode' => 'render'));
-  $searchstring = drupal_render($address);
   // @todo Move to custom addressfield handler.
+  // $address = addressfield_generate($address, array('address'), array('mode' => 'render'));
+  // $searchstring = drupal_render($address);
+  $searchstring = implode(', ', [
+    $address['thoroughfare'],
+    $address['postal_code'] . ' ' . $address['locality'],
+    $address['country']
+  ]);
   $searchstring = strip_tags($searchstring);
   $searchstring = trim(preg_replace('/\s+/', ' ', $searchstring));
   return $searchstring;
